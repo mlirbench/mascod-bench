@@ -1,0 +1,396 @@
+{
+  "level_1": [
+    {
+      "id": "T1_R1",
+      "description": "Rename SSA variables using inspection-derived symbol table",
+      "rules": [
+        "Use ONLY variable names identified in inspection results",
+        "Rename ALL SSA values exactly once using a deterministic mapping",
+        "Preserve torch dialect operations exactly",
+        "Do NOT modify op names such as torch.add, torch.mm, torch.relu, etc.",
+        "Do NOT change operand order",
+        "Do NOT change tensor types or ranks",
+        "Preserve use-def chains strictly as defined in inspection graph",
+        "Ensure SSA dominance rules are maintained",
+        "Do NOT introduce new variables or remove existing ones",
+        "Result must pass mlir-opt with torch dialect enabled"
+      ]
+    },
+    {
+      "id": "T1_R2",
+      "description": "Reorder independent operations using inspection dependency graph",
+      "rules": [
+        "Use ONLY dependency graph from inspection results",
+        "Reorder ONLY operations explicitly marked independent",
+        "Do NOT reorder operations involving side-effects or mutation",
+        "Preserve torch op semantics exactly",
+        "Do NOT move operations across blocks or regions",
+        "Ensure all operands are defined before use",
+        "Maintain SSA validity strictly",
+        "Do NOT infer independence beyond inspection data",
+        "No insertion or deletion of operations",
+        "Must compile successfully"
+      ]
+    },
+    {
+      "id": "T1_R3",
+      "description": "Canonicalize formatting without semantic changes",
+      "rules": [
+        "Use inspection ordering as the ONLY valid program structure; do NOT reorder operations, blocks, or regions",
+        "Preserve ALL torch operations exactly, including full op names such as torch.add, torch.aten.mm, torch.relu, etc.",
+        "Do NOT modify ANY attributes including dtype, device, layout, requires_grad, or memory format",
+        "Preserve tensor types EXACTLY including rank, shape, dtype, and optional attributes",
+        "Ensure SSA values are consistently named and referenced; no dangling or duplicate names allowed",
+        "Preserve block arguments and region arguments EXACTLY; argument counts, order, and types must match",
+        "Ensure every SSA value is defined before use according to dominance rules",
+        "Normalize formatting ONLY (whitespace, indentation, line breaks, attribute spacing)",
+        "At least ONE formatting-level transformation MUST be applied to ensure output is textually different",
+        "Valid transformations include: renaming temporary SSA values, reformatting numeric literals, or canonical spacing changes",
+        "Do NOT introduce new operations, constants, attributes, or regions",
+        "Do NOT remove any existing operations, arguments, or attributes",
+        "Output MUST be syntactically different from input AND pass torch-mlir-opt pipeline successfully"
+      ]
+    },
+    {
+      "id": "T1_R4",
+      "description": "Apply deterministic SSA renaming using inspection metadata",
+      "rules": [
+        "Use inspection metadata for naming",
+        "Ensure consistent renaming across all uses",
+        "Preserve all dependencies exactly",
+        "Do NOT modify computation",
+        "Do NOT alter torch ops",
+        "Maintain type integrity",
+        "Ensure no naming collisions",
+        "Do NOT introduce new identifiers",
+        "Do NOT infer new variables",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "T1_R5",
+      "description": "Reconstruct program strictly from inspection graph",
+      "rules": [
+        "Reconstruct the program using ONLY nodes and edges present in inspection metadata",
+        "Preserve EXACT operation ordering, including intra-block and inter-block ordering",
+        "Ensure all SSA values are reconstructed with correct definitions before uses",
+        "Preserve ALL torch operations exactly, including op names and semantics",
+        "Maintain full dependency graph integrity; no missing or extra edges allowed",
+        "Preserve tensor types exactly including shape, dtype, and device attributes",
+        "Reconstruct all constants exactly as defined in inspection metadata",
+        "Preserve block structure, region nesting, and argument lists exactly",
+        "Do NOT introduce new operations, values, or attributes",
+        "Do NOT remove any existing nodes from the graph",
+        "Do NOT infer missing nodes or dependencies",
+        "Ensure deterministic reconstruction with no ambiguity",
+        "At least ONE non-semantic transformation MUST be applied to ensure the output is textually different from the input",
+        "Valid transformations include: renaming SSA variables, reformatting constants, or canonical whitespace changes",
+        "The reconstructed program MUST be semantically identical but syntactically different from the input",
+        "Output MUST pass torch-mlir-opt pipeline without errors"
+      ]
+    }
+  ],
+
+  "level_2": [
+    {
+      "id": "T2_R1",
+      "description": "Modify tensor shapes using inspection metadata",
+      "rules": [
+        "Use ONLY shapes present in inspection results",
+        "Update all dependent torch ops consistently",
+        "Ensure shape compatibility for all ops",
+        "Do NOT introduce new shapes not derived from inspection",
+        "Preserve broadcasting semantics where applicable",
+        "Do NOT break tensor rank constraints",
+        "Maintain semantic correctness",
+        "Do NOT infer missing dimensions",
+        "Ensure full propagation of changes",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "T2_R3",
+      "description": "Modify constant tensors using inspection values",
+      "rules": [
+        "Identify ALL constant values from inspection metadata including torch.constant.* and torch.vtensor.literal(...)",
+        "If at least one constant exists, SELECT exactly one constant value and MODIFY it",
+        "If NO constants exist, SELECT a scalar literal used as an operand in any torch operation and MODIFY it as a fallback",
+        "Modification MUST change the numeric or boolean value (no no-op allowed)",
+        "Preserve the original dtype of the constant (e.g., f32 remains float, i32 remains integer, i1 remains boolean)",
+        "Preserve the original tensor shape and rank EXACTLY for tensor literals",
+        "For scalar constants, preserve scalar form and do NOT convert to tensor or vice versa",
+        "Ensure modified values remain valid for the associated dtype (e.g., no floats in integer constants)",
+        "Update ALL uses of the modified constant consistently across the program",
+        "Do NOT introduce new constants, new tensors, or new operations",
+        "Do NOT remove existing constants or replace them with different constructs",
+        "Ensure the modification results in a program that is textually different from the input",
+        "The resulting program MUST pass the torch-mlir-opt pipeline successfully"
+      ]
+    },
+    {
+      "id": "T2_R4",
+      "description": "Modify broadcasting behavior safely",
+      "rules": [
+        "Use broadcasting patterns from inspection results",
+        "Ensure compatibility across all tensor ops",
+        "Do NOT introduce invalid broadcasting",
+        "Preserve semantic correctness",
+        "Update all dependent ops",
+        "Do NOT infer new broadcasting patterns",
+        "Maintain valid tensor alignment",
+        "Ensure no runtime mismatch",
+        "Preserve structure",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "T2_R5",
+      "description": "Modify tensor device/layout attributes",
+      "rules": [
+        "Identify ALL tensor attributes from inspection metadata including dtype conversions and implicit layout behavior",
+        "If explicit device or layout attributes are present, SELECT at least one and MODIFY it",
+        "If NO device or layout attributes exist, perform a fallback mutation by modifying a dtype conversion parameter in torch.aten.to.dtype operations",
+        "The modification MUST change a parameter value (e.g., dtype integer code) and MUST NOT be a no-op",
+        "Preserve tensor shape, rank, and structural integrity during modification",
+        "Ensure all operations remain valid under the modified attribute or dtype",
+        "Apply the modification consistently across all dependent uses if required",
+        "Do NOT introduce unsupported or invalid device/layout values",
+        "Do NOT introduce new operations or remove existing ones",
+        "Do NOT partially modify attributes; all related uses must remain consistent",
+        "Ensure the output program is textually different from the input",
+        "Maintain semantic correctness of computation where possible",
+        "The resulting program MUST pass the torch-mlir-opt pipeline successfully"
+      ]
+    }
+  ],
+
+  "level_3": [
+    {
+      "id": "T3_R1",
+      "description": "Replace torch ops with semantically equivalent ops",
+      "rules": [
+        "Use ONLY operations observed in inspection results",
+        "Do NOT invent new torch ops",
+        "Ensure strict semantic equivalence",
+        "Update operands and results consistently",
+        "Preserve shapes and dtypes",
+        "Maintain computation correctness",
+        "Do NOT alter output semantics",
+        "Maintain dependency graph integrity",
+        "Do NOT infer unknown ops",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "T3_R2",
+      "description": "Decompose torch ops into valid sequences",
+      "rules": [
+        "Break ops using ONLY valid torch dialect operations",
+        "Preserve semantics exactly",
+        "Maintain all dependencies",
+        "Do NOT introduce unsupported ops",
+        "Ensure intermediate tensors are valid",
+        "Do NOT infer missing operations",
+        "Maintain SSA correctness",
+        "Ensure deterministic output",
+        "Preserve structure",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "T3_R4",
+      "description": "Modify operator parameters using inspection metadata",
+      "rules": [
+        "Use parameters from inspection results",
+        "Modify within valid bounds",
+        "Ensure semantic correctness",
+        "Update dependent ops",
+        "Do NOT introduce invalid configurations",
+        "Do NOT infer new parameters",
+        "Maintain tensor compatibility",
+        "Ensure deterministic transformation",
+        "Preserve semantics",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "T3_R5",
+      "description": "Apply semantic transformations using inspection graph only",
+      "rules": [
+        "Use inspection graph as sole reference",
+        "Preserve semantics exactly",
+        "Do NOT introduce unknown operations",
+        "Maintain all dependencies",
+        "Preserve tensor integrity",
+        "Do NOT infer missing structure",
+        "Ensure correctness",
+        "Maintain MLIR validity",
+        "No hallucination allowed",
+        "Must pass verification"
+      ]
+    }
+  ],
+
+  "level_4": [
+    {
+      "id": "T4_R1",
+      "description": "Restructure computation using inspection graph",
+      "rules": [
+        "Use dependency graph from inspection",
+        "Modify structure without breaking semantics",
+        "Maintain all dependencies",
+        "Ensure valid data flow",
+        "Do NOT introduce new constructs",
+        "Do NOT infer structure",
+        "Preserve SSA correctness",
+        "Maintain tensor compatibility",
+        "Ensure correctness",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "T4_R2",
+      "description": "Introduce intermediates based on inspection data",
+      "rules": [
+        "Insert intermediates only where inspection permits",
+        "Preserve semantics exactly",
+        "Ensure type correctness",
+        "Maintain dependencies",
+        "Do NOT introduce invalid ops",
+        "Do NOT infer missing values",
+        "Maintain SSA correctness",
+        "Ensure deterministic behavior",
+        "Preserve structure",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "T4_R3",
+      "description": "Reorganize regions using inspection structure",
+      "rules": [
+        "Use region structure from inspection",
+        "Preserve execution semantics",
+        "Maintain block dominance",
+        "Do NOT introduce new regions",
+        "Do NOT remove required regions",
+        "Do NOT infer structure",
+        "Ensure valid MLIR",
+        "Preserve dependencies",
+        "Maintain correctness",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "T4_R4",
+      "description": "Split computation into stages",
+      "rules": [
+        "Split computation ONLY within the SAME function body",
+        "Do NOT create new func.func definitions",
+        "Do NOT introduce func.call operations",
+        "Split only along valid dependency boundaries",
+        "Preserve semantics exactly",
+        "Maintain all dependencies without modification",
+        "Ensure all values remain in the same SSA scope",
+        "Introduce intermediate SSA values to represent stage boundaries",
+        "Reorder computation into logically grouped stages using existing operations only",
+        "Do NOT move operations across function boundaries",
+        "Do NOT introduce invalid operations",
+        "Do NOT infer splits beyond inspection graph",
+        "Ensure correctness of computation",
+        "Maintain SSA validity strictly",
+        "Preserve tensor compatibility across all stages",
+        "Ensure valid MLIR that is accepted by torch-mlir-opt",
+        "The transformed program MUST pass torch-mlir-opt pipeline without errors"
+      ]
+    },
+    {
+      "id": "T4_R5",
+      "description": "Merge computation stages",
+      "rules": [
+        "Merge only compatible ops from inspection",
+        "Preserve semantics",
+        "Maintain dependencies",
+        "Do NOT introduce invalid structure",
+        "Do NOT infer compatibility",
+        "Ensure correctness",
+        "Maintain SSA rules",
+        "Preserve tensor integrity",
+        "Ensure valid MLIR",
+        "Must compile"
+      ]
+    }
+  ],
+
+  "level_5": [
+    {
+      "id": "T5_R1",
+      "description": "Introduce controlled semantic failure",
+      "rules": [
+        "Use inspection structure as base",
+        "Introduce minimal controlled error",
+        "Preserve syntax correctness",
+        "Ensure deterministic failure",
+        "Do NOT corrupt entire program",
+        "Do NOT introduce randomness",
+        "Target specific semantic violation",
+        "Maintain readability",
+        "Error must be reproducible",
+        "Must fail mlir-opt"
+      ]
+    },
+    {
+      "id": "T5_R2",
+      "description": "Introduce type mismatch",
+      "rules": [
+        "Use ONLY types present in inspection metadata",
+        "Select a torch operation with a FIXED signature that enforces exact operand count and types (e.g., torch.aten.sum.dim_IntList, torch.prim.ListConstruct)",
+        "Introduce a mismatch by altering the NUMBER of operands OR their declared types in the operation signature",
+        "Ensure the mismatch violates the operation's expected argument count or type signature",
+        "Do NOT rely on dtype incompatibility alone, as Torch allows implicit conversions",
+        "Examples of valid mismatches include: adding an extra operand, removing a required operand, or mismatching declared operand types in the signature annotation",
+        "Ensure the operation syntax remains well-formed MLIR (no syntax errors)",
+        "Do NOT modify unrelated operations or program structure",
+        "Ensure the mismatch is localized to a single operation",
+        "Preserve SSA naming and overall structure",
+        "Ensure deterministic behavior for the same input",
+        "Ensure the output program is textually different from the input",
+        "The generated program MUST cause torch-mlir-opt to fail when executed",
+        "torch-mlir-opt MUST produce a verification or compilation error for the generated program",
+        "If torch-mlir-opt successfully processes the program (no error, exit code 0), the mutation is INVALID and must be rejected",
+        "A valid mutation for this rule EXISTS ONLY if torch-mlir-opt fails on the generated program"
+      ]
+    },
+    {
+      "id": "T5_R4",
+      "description": "Break dependency chain",
+      "rules": [
+        "Use inspection graph",
+        "Introduce undefined variable usage",
+        "Preserve syntax",
+        "Ensure error clarity",
+        "Do NOT corrupt full program",
+        "Maintain structure",
+        "Ensure deterministic failure",
+        "Avoid randomness",
+        "Preserve readability",
+        "Must fail SSA checks"
+      ]
+    },
+    {
+      "id": "T5_R5",
+      "description": "Introduce structural violation",
+      "rules": [
+        "Use inspection structure",
+        "Introduce minimal violation",
+        "Preserve syntax",
+        "Ensure error is meaningful",
+        "Do NOT fully corrupt program",
+        "Maintain readability",
+        "Ensure deterministic failure",
+        "Avoid randomness",
+        "Target specific violation",
+        "Must fail mlir-opt"
+      ]
+    }
+  ]
+}

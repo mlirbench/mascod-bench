@@ -1,0 +1,421 @@
+{
+  "level_1": [
+    {
+      "id": "L1_R1",
+      "description": "Rename SSA variables using inspection-derived symbol table",
+      "rules": [
+        "Use ONLY variable names identified in the inspection results",
+        "Rename ALL SSA variables exactly once using a deterministic mapping",
+        "Do NOT introduce new variables not present in inspection metadata",
+        "Preserve use-def chains exactly as defined in inspection",
+        "Do NOT modify operations, operands, or ordering",
+        "Do NOT modify tensor types or shapes",
+        "Ensure all renamed variables still satisfy SSA dominance rules",
+        "Do NOT infer or assume missing variables",
+        "Ensure output strictly matches inspected dependency graph",
+        "Result must pass mlir-opt without modification"
+      ]
+    },
+    {
+      "id": "L1_R2",
+      "description": "Reorder independent operations based on inspected dependency graph",
+      "rules": [
+        "Use dependency graph from inspection results as the ONLY source of truth",
+        "Reorder ONLY operations marked as independent in inspection metadata",
+        "Do NOT reorder operations with direct or indirect dependencies",
+        "Preserve operand relationships exactly",
+        "Do NOT move operations across blocks or regions",
+        "Maintain SSA validity and dominance constraints",
+        "Do NOT introduce or remove operations",
+        "Do NOT infer independence beyond inspection data",
+        "Ensure reordered program matches inspected data flow",
+        "Must compile without errors"
+      ]
+    },
+    {
+      "id": "L1_R3",
+      "description": "Rename block arguments and region variables using deterministic mapping",
+      "rules": [
+        "Rename ALL block arguments (e.g., ^bb0(%arg0, %arg1)) using a deterministic naming scheme",
+        "Apply renaming consistently across all uses within the region",
+        "Do NOT modify operation order or structure",
+        "Do NOT modify operands, attributes, or result types",
+        "Preserve all region and block boundaries exactly",
+        "Do NOT introduce new arguments or remove existing ones",
+        "Ensure SSA dominance and scoping rules are preserved",
+        "Do NOT rename values outside region argument scope unless explicitly required",
+        "Ensure renamed program is structurally identical except for argument names",
+        "Must produce a non-identical program text",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L1_R4",
+      "description": "Apply deterministic renaming and formatting using inspection metadata",
+      "rules": [
+        "Use inspection metadata to derive naming scheme",
+        "Rename variables consistently across all occurrences",
+        "Preserve all dependencies exactly",
+        "Do NOT modify operation semantics",
+        "Do NOT alter tensor structures",
+        "Ensure SSA uniqueness strictly",
+        "Do NOT introduce new identifiers",
+        "Do NOT infer missing symbols",
+        "Maintain exact structural equivalence",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L1_R5",
+      "description": "Normalize operation attributes and formatting without changing semantics",
+      "rules": [
+        "Reformat operation attributes into canonical MLIR textual form",
+        "Normalize spacing, ordering of attributes, and delimiter usage",
+        "Convert equivalent attribute representations to a canonical form (e.g., reorder dictionary attributes)",
+        "Preserve all attribute values exactly",
+        "Do NOT modify operations, operands, or result types",
+        "Do NOT modify control flow, regions, or block structure",
+        "Do NOT introduce or remove attributes",
+        "Ensure all transformations are syntax-level only",
+        "Ensure resulting MLIR is semantically identical",
+        "Must produce a non-identical textual representation",
+        "Must pass mlir-opt"
+      ]
+    }
+  ],
+
+  "level_2": [
+    {
+      "id": "L2_R1",
+      "description": "Modify tensor dimensions using inspection-derived shape metadata",
+      "rules": [
+        "Use ONLY tensor shapes provided in inspection results",
+        "Apply modifications consistently across all dependent operations",
+        "Update all uses of modified tensors based on inspection graph",
+        "Do NOT introduce new shapes not derived from inspection",
+        "Ensure all shape transformations remain valid",
+        "Do NOT break dimensional compatibility",
+        "Preserve operation semantics",
+        "Do NOT infer missing dimensions",
+        "Ensure all changes propagate fully",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L2_R2",
+      "description": "Modify tensor element types using inspection metadata with enforced transformation",
+      "rules": [
+        "Extract all unique element types from inspection metadata",
+        "Select at least one tensor element type and replace it with a different type from the extracted set",
+        "The replacement type must be different from the original type (no no-op allowed)",
+        "Apply the type change consistently across all dependent operations and values",
+        "Propagate the new type through the entire use-def chain",
+        "Update all related constants, operands, and results to match the new type",
+        "Ensure all operations used support the updated type",
+        "Do NOT introduce types not present in inspection metadata",
+        "Do NOT partially update types; all dependent uses must be updated",
+        "Maintain valid MLIR typing and SSA rules",
+        "If no alternative type exists, return explicit mutation failure instead of unchanged program",
+        "Output must be syntactically different from input",
+        "Must compile successfully"
+      ]
+    },
+    {
+      "id": "L2_R3",
+      "description": "Modify constants based on inspection-provided values",
+      "rules": [
+        "Use constants identified in inspection metadata",
+        "Modify only within valid bounds of usage",
+        "Ensure dependent operations remain valid",
+        "Do NOT introduce new constants outside inspection",
+        "Preserve computation validity",
+        "Do NOT break tensor compatibility",
+        "Ensure deterministic transformation",
+        "Do NOT infer missing constants",
+        "Maintain structural integrity",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L2_R4",
+      "description": "Modify indexing maps using inspection-derived mappings",
+      "rules": [
+        "Use ONLY indexing maps from inspection results",
+        "Apply consistent transformation across all related ops",
+        "Ensure affine maps remain valid",
+        "Do NOT introduce new indexing patterns",
+        "Maintain tensor access correctness",
+        "Preserve dependency relationships",
+        "Do NOT infer new mappings",
+        "Ensure full propagation",
+        "Maintain MLIR compliance",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "L2_R5",
+      "description": "Modify iteration space using inspection-provided bounds",
+      "rules": [
+        "Use iteration bounds from inspection metadata",
+        "Adjust loops consistently across all dependent ops",
+        "Ensure no out-of-bounds access",
+        "Do NOT introduce new iteration ranges",
+        "Maintain affine correctness",
+        "Preserve computation semantics",
+        "Do NOT infer missing ranges",
+        "Ensure full dependency consistency",
+        "Maintain valid MLIR structure",
+        "Must pass verification"
+      ]
+    }
+  ],
+
+  "level_3": [
+    {
+      "id": "L3_R1",
+      "description": "Transform linalg operations using inspection-validated ops only",
+      "rules": [
+        "Use ONLY operations observed in inspection results",
+        "Do NOT introduce new or unknown operations",
+        "Replace operations only with valid equivalents",
+        "Ensure semantic equivalence strictly",
+        "Update operands and results consistently",
+        "Preserve tensor shapes and types",
+        "Maintain dependency graph integrity",
+        "Do NOT infer new operators",
+        "Ensure output correctness",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L3_R2",
+      "description": "Decompose operations based on inspection-derived structure",
+      "rules": [
+        "Break operations into components derived from inspection",
+        "Use ONLY valid linalg operations",
+        "Preserve full semantics",
+        "Maintain correct dependencies",
+        "Do NOT introduce unsupported operations",
+        "Ensure all intermediate values are valid",
+        "Do NOT infer missing operations",
+        "Maintain SSA correctness",
+        "Ensure equivalence",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "L3_R3",
+      "description": "Fuse operations based on inspection dependency graph",
+      "rules": [
+        "Fuse ONLY operations marked compatible in inspection",
+        "Preserve full semantic correctness",
+        "Maintain indexing maps validity",
+        "Do NOT break dependencies",
+        "Do NOT introduce new operations",
+        "Ensure tensor compatibility",
+        "Do NOT infer fusibility",
+        "Maintain SSA correctness",
+        "Ensure deterministic transformation",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L3_R4",
+      "description": "Modify operator parameters using inspection data",
+      "rules": [
+        "Use parameters from inspection metadata",
+        "Modify only within valid bounds",
+        "Ensure semantic correctness",
+        "Preserve dependency relationships",
+        "Do NOT introduce invalid configurations",
+        "Do NOT infer new parameter sets",
+        "Ensure full propagation",
+        "Maintain valid MLIR semantics",
+        "Preserve structure",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "L3_R5",
+      "description": "Apply semantic transformation guided strictly by inspection graph",
+      "rules": [
+        "Use inspection graph as sole reference",
+        "Ensure transformation preserves semantics",
+        "Do NOT introduce unknown operations",
+        "Maintain all dependencies",
+        "Preserve tensor integrity",
+        "Do NOT infer missing structure",
+        "Ensure correctness",
+        "Maintain MLIR validity",
+        "No hallucination allowed",
+        "Must pass verification"
+      ]
+    }
+  ],
+
+  "level_4": [
+    {
+      "id": "L4_R1",
+      "description": "Restructure computation using inspection-derived graph",
+      "rules": [
+        "Use dependency graph from inspection results",
+        "Modify structure without breaking semantics",
+        "Maintain all dependencies",
+        "Ensure valid data flow",
+        "Do NOT introduce new constructs",
+        "Do NOT infer missing structure",
+        "Preserve SSA correctness",
+        "Maintain tensor compatibility",
+        "Ensure correctness",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "L4_R2",
+      "description": "Introduce intermediates based on inspection data flow",
+      "rules": [
+        "Insert intermediates only where inspection permits",
+        "Maintain full semantic equivalence",
+        "Ensure type correctness",
+        "Preserve dependencies",
+        "Do NOT introduce invalid ops",
+        "Do NOT infer missing values",
+        "Maintain SSA correctness",
+        "Ensure deterministic behavior",
+        "Preserve structure",
+        "Must pass mlir-opt"
+      ]
+    },
+    {
+      "id": "L4_R3",
+      "description": "Reorganize blocks and regions using inspection structure",
+      "rules": [
+        "Use region structure from inspection",
+        "Preserve block dominance",
+        "Maintain correct scoping",
+        "Do NOT introduce new regions",
+        "Do NOT remove required regions",
+        "Do NOT infer structure",
+        "Ensure valid MLIR",
+        "Preserve dependencies",
+        "Maintain correctness",
+        "Must compile"
+      ]
+    },
+    {
+      "id": "L4_R4",
+      "description": "Split computation based on inspection graph",
+      "rules": [
+        "Split only along valid dependency boundaries",
+        "Maintain semantic equivalence",
+        "Preserve all dependencies",
+        "Do NOT introduce invalid operations",
+        "Do NOT infer missing splits",
+        "Ensure correctness",
+        "Maintain SSA validity",
+        "Preserve tensor compatibility",
+        "Ensure valid MLIR",
+        "Must pass verification"
+      ]
+    },
+    {
+      "id": "L4_R5",
+      "description": "Merge computation stages using inspection guidance",
+      "rules": [
+        "Merge only compatible operations from inspection",
+        "Preserve semantics",
+        "Maintain dependencies",
+        "Do NOT introduce invalid structure",
+        "Do NOT infer compatibility",
+        "Ensure correctness",
+        "Maintain SSA rules",
+        "Preserve tensor integrity",
+        "Ensure valid MLIR",
+        "Must compile"
+      ]
+    }
+  ],
+
+  "level_5": [
+    {
+      "id": "L5_R1",
+      "description": "Introduce controlled semantic failure using inspection structure",
+      "rules": [
+        "Use inspection structure as base",
+        "Introduce minimal controlled error",
+        "Preserve syntax correctness",
+        "Ensure error is deterministic",
+        "Do NOT corrupt entire program",
+        "Do NOT introduce random noise",
+        "Target specific failure",
+        "Maintain readability",
+        "Error must be reproducible",
+        "Must fail mlir-opt"
+      ]
+    },
+    {
+      "id": "L5_R2",
+      "description": "Introduce type mismatch based on inspection types",
+      "rules": [
+        "Use types from inspection metadata",
+        "Introduce controlled mismatch",
+        "Preserve syntax",
+        "Ensure error clarity",
+        "Do NOT introduce invalid syntax",
+        "Maintain structure",
+        "Do NOT infer random types",
+        "Ensure deterministic failure",
+        "Preserve readability",
+        "Must fail verification"
+      ]
+    },
+    {
+      "id": "L5_R3",
+      "description": "Break operator constraints using inspection-defined ops",
+      "rules": [
+        "Use existing operations from inspection",
+        "Apply invalid configuration",
+        "Preserve syntax",
+        "Ensure error is meaningful",
+        "Do NOT invent operations",
+        "Maintain structure",
+        "Ensure deterministic failure",
+        "Preserve readability",
+        "Avoid randomness",
+        "Must fail mlir-opt"
+      ]
+    },
+    {
+      "id": "L5_R4",
+      "description": "Break dependency chain using inspection graph",
+      "rules": [
+        "Use inspection dependency graph",
+        "Introduce controlled violation",
+        "Preserve syntax",
+        "Ensure error clarity",
+        "Do NOT corrupt full program",
+        "Maintain structure",
+        "Ensure deterministic failure",
+        "Avoid randomness",
+        "Preserve readability",
+        "Must fail SSA checks"
+      ]
+    },
+    {
+      "id": "L5_R5",
+      "description": "Introduce structural violation using inspection metadata",
+      "rules": [
+        "Use inspection structure",
+        "Introduce minimal violation",
+        "Preserve syntax",
+        "Ensure error is meaningful",
+        "Do NOT fully corrupt program",
+        "Maintain readability",
+        "Ensure deterministic failure",
+        "Avoid randomness",
+        "Target specific violation",
+        "Must fail mlir-opt"
+      ]
+    }
+  ]
+}
