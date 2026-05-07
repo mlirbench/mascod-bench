@@ -230,6 +230,21 @@ Currently supported MLIR dialects:
 
 ---
 
+# Leaderboard
+
+The MASCoD-MLIRBench leaderboard and benchmark results are available at:
+
+https://mascod-bench.github.io/mascod-bench/index.html
+
+The leaderboard includes:
+- Model performance comparisons
+- Semantic reasoning evaluation metrics
+- Mutation-level breakdowns
+- Dialect-specific benchmarking results
+- Execution validation statistics
+
+---
+
 # Citation
 
 If you use MASCoD-MLIRBench in academic work, please cite the corresponding paper once published.
