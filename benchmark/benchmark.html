@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>MASCoD Bench</title>
+
+    <link rel="stylesheet" href="benchmark.css" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <nav class="navbar">
+      <div class="logo">MASCoD-MLIRBench</div>
+
+      <div class="nav-links">
+        <a href="#">Home</a>
+        <a href="#leaderboard">Leaderboard</a>
+        <a href="https://huggingface.co/datasets/mascodbench/MASCoD-MLIRBench"
+          >Dataset</a
+        >
+        <a href="https://github.com/mascod-bench/mascod-bench">GitHub</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Benchmarking Semantic Code Divergence Reasoning in MLIR</h1>
+
+        <p>
+          MASCoD Bench evaluates whether large language models can reason about
+          semantic equivalence, divergence, and failure-inducing mutations in
+          compiler intermediate representations.
+        </p>
+
+        <div class="hero-buttons">
+          <a class="primary-btn" href="#leaderboard"> View Leaderboard </a>
+
+          <a
+            class="secondary-btn"
+            href="https://huggingface.co/datasets/mascodbench/MASCoD-MLIRBench"
+          >
+            Dataset
+          </a>
+
+          <a
+            class="secondary-btn"
+            href="https://github.com/mascod-bench/mascod-bench"
+            style="
+              background-color: black;
+              color: white;
+              padding: 10px 16px;
+              border-radius: 8px;
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+            "
+          >
+            GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span>Total Models</span>
+          <h2 id="totalModels">-</h2>
+        </div>
+
+        <div class="stat-card">
+          <span>Total Samples</span>
+          <h2 id="totalSamples">-</h2>
+        </div>
+
+        <div class="stat-card">
+          <span>Average Score</span>
+          <h2 id="avgScore">-</h2>
+        </div>
+
+        <!-- <div class="stat-card">
+          <span>Correct Predictions</span>
+          <h2 id="correctRate">-</h2>
+        </div> -->
+      </div>
+    </section>
+
+    <section class="overview-section">
+      <div class="section-header">
+        <h2>Benchmark Overview</h2>
+
+        <p>
+          Designed for evaluating semantic reasoning across structured MLIR
+          mutation levels.
+        </p>
+      </div>
+
+      <div class="overview-grid">
+        <div class="overview-card">
+          <h3>Mutation Levels</h3>
+
+          <p>
+            Five semantic mutation levels spanning syntactic edits to
+            failure-inducing transformations.
+          </p>
+        </div>
+
+        <div class="overview-card">
+          <h3>Dialect Support</h3>
+
+          <p>
+            Includes structured mutations for Linalg and Torch MLIR dialects.
+          </p>
+        </div>
+
+        <div class="overview-card">
+          <h3>Execution Validation</h3>
+
+          <p>
+            Ground truth labels generated using compiler execution and semantic
+            checks.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="charts-section">
+      <div class="chart-card">
+        <h3>Average Score by Model</h3>
+
+        <canvas id="scoreChart"></canvas>
+      </div>
+    </section>
+
+    <section class="leaderboard-section" id="leaderboard">
+      <div class="section-header">
+        <h2>Leaderboard</h2>
+
+        <p>Model performance on semantic divergence reasoning tasks.</p>
+      </div>
+
+      <div class="leaderboard-card">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Model</th>
+                <th>Avg Score</th>
+                <th>Weighted Accuracy</th>
+                <th>Correct</th>
+                <th>Partial</th>
+                <th>Incorrect</th>
+              </tr>
+            </thead>
+
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <h3>MASCoD-MLIRBench</h3>
+
+      <p>Multi-Agent Framework for Semantic Code Divergence</p>
+    </footer>
+
+    <script src="benchmark.js"></script>
+  </body>
+</html>

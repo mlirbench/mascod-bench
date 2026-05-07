@@ -2,30 +2,25 @@ import os
 import json
 from pathlib import Path
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, UTC
+import re
+from copy import deepcopy
 
 # ============================================================
 # USER CONFIGURATION
 # ============================================================
 
-# ------------------------------------------------------------
-# Enter the ALREADY-EXTRACTED folder paths
-# ------------------------------------------------------------
-
 MUTATION_AGENT_FOLDER = "/Users/pranava/Downloads/Dataset-Final-3/Mutation_Agent"
 
 EXECUTION_AGENT_FOLDER = "/Users/pranava/Downloads/execution_outputs/outputs/Execution_Agent"
 
-OUTPUT_DATASET_JSON = "mascod_bench_dataset.json"
+OUTPUT_DATASET_JSON = "mascod_bench_dataset_final2.json"
 
 # ============================================================
 # IGNORE RULES
 # ============================================================
 
 def should_ignore_path(path_obj):
-    """
-    Ignore macOS metadata folders/files.
-    """
 
     ignored_parts = {
         "__MACOSX",
@@ -39,34 +34,171 @@ def should_ignore_path(path_obj):
 
     return False
 
-
 # ============================================================
-# HELPERS
+# LOADERS
 # ============================================================
 
 def load_json(path):
 
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with open(
+        path,
+        "r",
+        encoding="utf-8"
+    ) as f:
 
+        return json.load(f)
 
 def load_jsonl(path):
 
     rows = []
 
-    with open(path, "r", encoding="utf-8") as f:
+    with open(
+        path,
+        "r",
+        encoding="utf-8"
+    ) as f:
 
-        for line in f:
+        for line_num, line in enumerate(f, start=1):
 
             line = line.strip()
 
             if not line:
                 continue
 
-            rows.append(json.loads(line))
+            try:
+
+                rows.append(
+                    json.loads(line)
+                )
+
+            except Exception as e:
+
+                print(
+                    f"[JSONL ERROR] {path}"
+                )
+
+                print(
+                    f"Line: {line_num}"
+                )
+
+                print(e)
 
     return rows
 
+# ============================================================
+# ANONYMIZATION
+# ============================================================
+
+ANONYMIZATION_RULES = [
+
+    # Names
+    (
+        re.compile(
+            r"Subrahmanya\s+Sree\s+Pranava\s+Sai\s+Maganti",
+            re.IGNORECASE
+        ),
+        "mascod-mlirbench"
+    ),
+
+    (
+        re.compile(
+            r"Pranava\s+Sai\s+Maganti",
+            re.IGNORECASE
+        ),
+        "mascod-mlirbench"
+    ),
+
+    (
+        re.compile(
+            r"\bPranava\b",
+            re.IGNORECASE
+        ),
+        "mascod-mlirbench"
+    ),
+
+    # Emails
+    (
+        re.compile(
+            r"[\w\.-]+@iastate\.edu",
+            re.IGNORECASE
+        ),
+        "mascodbench@gmail.com"
+    ),
+
+    (
+        re.compile(
+            r"[\w\.-]+@gmail\.com",
+            re.IGNORECASE
+        ),
+        "mascodbench@gmail.com"
+    ),
+
+    # Mac paths
+    (
+        re.compile(
+            r"/Users/pranava",
+            re.IGNORECASE
+        ),
+        "/Users/mascod-mlirbench"
+    ),
+
+    # GitHub usernames
+    (
+        re.compile(
+            r"pranava[-_]sai",
+            re.IGNORECASE
+        ),
+        "mascod-mlirbench"
+    ),
+
+    (
+        re.compile(
+            r"\bpranava7\b",
+            re.IGNORECASE
+        ),
+        "mascod-mlirbench"
+    ),
+]
+
+def anonymize_text(text):
+
+    if not isinstance(text, str):
+        return text
+
+    updated = text
+
+    for pattern, replacement in ANONYMIZATION_RULES:
+
+        updated = pattern.sub(
+            replacement,
+            updated
+        )
+
+    return updated
+
+def anonymize_object(obj):
+
+    if isinstance(obj, dict):
+
+        return {
+            anonymize_text(k):
+                anonymize_object(v)
+            for k, v in obj.items()
+        }
+
+    elif isinstance(obj, list):
+
+        return [
+            anonymize_object(x)
+            for x in obj
+        ]
+
+    elif isinstance(obj, str):
+
+        return anonymize_text(obj)
+
+    else:
+        return obj
 
 # ============================================================
 # PROGRAM ID GENERATOR
@@ -78,21 +210,10 @@ def build_program_id(
     program_name,
     mutation_name
 ):
-    """
-    Converts:
 
-        Seed_1
-        program_11.mlir
-        L4_R1.json
-
-    into:
-
-        seed1_linalg_prog11_L4_R1
-    """
-
-    # --------------------------------------------------------
-    # Seed
-    # --------------------------------------------------------
+    # ========================================================
+    # NORMALIZE SEED
+    # ========================================================
 
     seed_num = (
         seed.lower()
@@ -100,9 +221,9 @@ def build_program_id(
         .replace("seed", "")
     )
 
-    # --------------------------------------------------------
-    # Program
-    # --------------------------------------------------------
+    # ========================================================
+    # NORMALIZE PROGRAM
+    # ========================================================
 
     program_num = (
         program_name
@@ -110,26 +231,29 @@ def build_program_id(
         .replace(".mlir", "")
     )
 
-    # --------------------------------------------------------
-    # Mutation Rule
-    # --------------------------------------------------------
+    # ========================================================
+    # NORMALIZE MUTATION RULE
+    # ========================================================
 
     mutation_rule = (
         mutation_name
         .replace(".json", "")
     )
 
-    # --------------------------------------------------------
-    # Final Program ID
-    # --------------------------------------------------------
+    # ========================================================
+    # MATCH EXECUTION AGENT FORMAT
+    # ========================================================
+
+    # Correct format:
+    # linalg_seed1_prog1_L1_R3
+    # torch_seed4_prog31_T1_R1
 
     return (
-        f"seed{seed_num}_"
         f"{dialect}_"
+        f"seed{seed_num}_"
         f"prog{program_num}_"
         f"{mutation_rule}"
     )
-
 
 # ============================================================
 # MUTATION AGENT PARSER
@@ -146,16 +270,9 @@ def parse_mutation_agent_results(root_dir):
         "rules": defaultdict(int)
     }
 
-    # --------------------------------------------------------
-    # Expected Structure
-    #
-    # linalg/
-    #   Seed_1/
-    #       program_11.mlir/
-    #           L4_R1.json
-    # --------------------------------------------------------
+    root = Path(root_dir)
 
-    for dialect_dir in Path(root_dir).iterdir():
+    for dialect_dir in root.iterdir():
 
         if should_ignore_path(dialect_dir):
             continue
@@ -190,20 +307,12 @@ def parse_mutation_agent_results(root_dir):
 
                         data = load_json(mutation_json)
 
-                        # ------------------------------------------------
-                        # Generate Program ID
-                        # ------------------------------------------------
-
                         program_id = build_program_id(
                             seed=seed_dir.name,
                             dialect=dialect,
                             program_name=program_dir.name,
                             mutation_name=mutation_json.name
                         )
-
-                        # ------------------------------------------------
-                        # Extract Data
-                        # ------------------------------------------------
 
                         context_results = data.get(
                             "context_results",
@@ -224,10 +333,6 @@ def parse_mutation_agent_results(root_dir):
 
                         rule_id = requirement.get("id")
 
-                        # ------------------------------------------------
-                        # Final Mutation Object
-                        # ------------------------------------------------
-
                         mutation_results[program_id] = {
 
                             "program_id": program_id,
@@ -238,104 +343,271 @@ def parse_mutation_agent_results(root_dir):
 
                             "program": program_dir.name,
 
-                            "mutation_rule_file": mutation_json.name,
+                            "mutation_rule_file":
+                                mutation_json.name,
+
+                            "source_file":
+                                str(mutation_json),
 
                             "mutation_agent": {
 
-                                "context_results": context_results,
+                                "context_results":
+                                    context_results,
 
-                                "blind_results": blind_results
+                                "blind_results":
+                                    blind_results
                             }
                         }
 
-                        # ------------------------------------------------
-                        # Stats
-                        # ------------------------------------------------
-
                         stats["total_samples"] += 1
 
-                        stats["dialects"][dialect] += 1
+                        stats["dialects"][
+                            dialect
+                        ] += 1
 
                         if level is not None:
-                            stats["levels"][f"L{level}"] += 1
+
+                            stats["levels"][
+                                f"L{level}"
+                            ] += 1
 
                         if rule_id:
-                            stats["rules"][rule_id] += 1
+
+                            stats["rules"][
+                                rule_id
+                            ] += 1
 
                     except Exception as e:
 
-                        print(f"[ERROR] Failed parsing:")
+                        print(
+                            f"[ERROR] Failed parsing:"
+                        )
+
                         print(mutation_json)
+
                         print(e)
 
     return mutation_results, stats
 
+# ============================================================
+# EXECUTION ARTIFACT DETECTOR
+# ============================================================
+
+def detect_artifact_type(path, data):
+
+    path_str = str(path).lower()
+
+    if "judge_payload" in path_str:
+        return "judge_payload"
+
+    if "pairs_benchmark" in path_str:
+        return "pair_benchmark"
+
+    if (
+        "benchmark_A" in data or
+        "benchmark_B" in data
+    ):
+        return "pair_benchmark"
+
+    if (
+        "semantic_explanation" in data
+    ):
+        return "judge_payload"
+
+    return "unknown"
 
 # ============================================================
-# EXECUTION SANDBOX PARSER
+# PROCESS EXECUTION ARTIFACT
+# ============================================================
+
+def process_execution_artifact(
+    path,
+    data,
+    execution_results,
+    stats
+):
+
+    if not isinstance(data, dict):
+        return
+
+    program_id = data.get("program_id")
+
+    if not program_id:
+        return
+
+    entry = execution_results[program_id]
+
+    entry["program_id"] = program_id
+
+    artifact = {
+
+        "source_file": str(path),
+
+        "artifact_type":
+            detect_artifact_type(path, data),
+
+        "data": data
+    }
+
+    artifact_type = artifact["artifact_type"]
+
+    if artifact_type == "judge_payload":
+
+        entry["judge_payloads"].append(
+            artifact
+        )
+
+        stats["judge_payloads"] += 1
+
+    elif artifact_type == "pair_benchmark":
+
+        entry["pair_benchmarks"].append(
+            artifact
+        )
+
+        stats["pair_benchmarks"] += 1
+
+    else:
+
+        entry["other_artifacts"].append(
+            artifact
+        )
+
+    stats["total_artifacts"] += 1
+
+# ============================================================
+# EXECUTION PARSER
 # ============================================================
 
 def parse_execution_agent_results(root_dir):
 
-    execution_results = {}
+    execution_results = defaultdict(
 
-    stats = {
-        "total_samples": 0,
-        "statuses": defaultdict(int),
-        "compile_A": defaultdict(int),
-        "compile_B": defaultdict(int)
-    }
+        lambda: {
 
-    benchmark_dir = (
-        Path(root_dir) / "pairs_benchmark"
+            "program_id": None,
+
+            "judge_payloads": [],
+
+            "pair_benchmarks": [],
+
+            "other_artifacts": []
+        }
     )
 
-    if not benchmark_dir.exists():
-        raise Exception(
-            "pairs_benchmark folder not found"
-        )
+    stats = {
 
-    for jsonl_file in benchmark_dir.glob("*.jsonl"):
+        "total_artifacts": 0,
 
-        if should_ignore_path(jsonl_file):
+        "judge_payloads": 0,
+
+        "pair_benchmarks": 0,
+
+        "json_files": 0,
+
+        "jsonl_rows": 0
+    }
+
+    root = Path(root_dir)
+
+    for path in root.rglob("*"):
+
+        if should_ignore_path(path):
             continue
 
-        rows = load_jsonl(jsonl_file)
+        if not path.is_file():
+            continue
 
-        for row in rows:
+        try:
 
-            program_id = row.get("program_id")
+            # ====================================================
+            # JSON FILES
+            # ====================================================
 
-            if not program_id:
-                continue
+            if path.suffix.lower() == ".json":
 
-            execution_results[program_id] = row
+                stats["json_files"] += 1
 
-            stats["total_samples"] += 1
+                data = load_json(path)
 
-            status = row.get(
-                "status",
-                "unknown"
+                process_execution_artifact(
+                    path,
+                    data,
+                    execution_results,
+                    stats
+                )
+
+            # ====================================================
+            # JSONL FILES
+            # ====================================================
+
+            elif path.suffix.lower() == ".jsonl":
+
+                rows = load_jsonl(path)
+
+                stats["jsonl_rows"] += len(rows)
+
+                for row in rows:
+
+                    process_execution_artifact(
+                        path,
+                        row,
+                        execution_results,
+                        stats
+                    )
+
+        except Exception as e:
+
+            print(
+                f"[ERROR] Failed parsing:"
             )
 
-            compile_A = row.get(
-                "compile_status_A",
-                "unknown"
-            )
+            print(path)
 
-            compile_B = row.get(
-                "compile_status_B",
-                "unknown"
-            )
-
-            stats["statuses"][status] += 1
-
-            stats["compile_A"][compile_A] += 1
-
-            stats["compile_B"][compile_B] += 1
+            print(e)
 
     return execution_results, stats
 
+# ============================================================
+# MERGE DATASETS
+# ============================================================
+
+# ============================================================
+# PROGRAM ID NORMALIZER
+# ============================================================
+
+def normalize_program_id(program_id):
+
+    if not program_id:
+        return None
+
+    pid = str(program_id).lower()
+
+    # ========================================================
+    # REMOVE EXTENSIONS
+    # ========================================================
+
+    pid = pid.replace(".json", "")
+    pid = pid.replace(".mlir", "")
+
+    # ========================================================
+    # STANDARDIZE TOKENS
+    # ========================================================
+
+    pid = pid.replace("program_", "prog")
+    pid = pid.replace("program", "prog")
+    pid = pid.replace("prog_", "prog")
+
+    pid = pid.replace("seed_", "seed")
+
+    # ========================================================
+    # REMOVE DOUBLE UNDERSCORES
+    # ========================================================
+
+    while "__" in pid:
+        pid = pid.replace("__", "_")
+
+    return pid.strip("_")
 
 # ============================================================
 # MERGE DATASETS
@@ -348,59 +620,111 @@ def merge_datasets(
 
     merged_samples = []
 
+    # ========================================================
+    # NORMALIZE EXECUTION LOOKUP
+    # ========================================================
+
+    normalized_execution = {}
+
+    for exec_pid, exec_data in execution_results.items():
+
+        normalized_pid = normalize_program_id(
+            exec_pid
+        )
+
+        normalized_execution[
+            normalized_pid
+        ] = exec_data
+
+    # ========================================================
+    # NORMALIZE MUTATION LOOKUP
+    # ========================================================
+
+    normalized_mutation = {}
+
+    for mut_pid, mut_data in mutation_results.items():
+
+        normalized_pid = normalize_program_id(
+            mut_pid
+        )
+
+        normalized_mutation[
+            normalized_pid
+        ] = mut_data
+
+    # ========================================================
+    # UNION OF IDS
+    # ========================================================
+
     all_program_ids = sorted(
-        set(mutation_results.keys()) |
-        set(execution_results.keys())
+
+        set(normalized_mutation.keys()) |
+        set(normalized_execution.keys())
     )
 
-    missing_mutation = 0
-    missing_execution = 0
+    # ========================================================
+    # MERGE
+    # ========================================================
 
-    for program_id in all_program_ids:
+    for normalized_pid in all_program_ids:
 
-        mutation_data = mutation_results.get(
-            program_id
+        mutation_data = normalized_mutation.get(
+            normalized_pid
         )
 
-        execution_data = execution_results.get(
-            program_id
+        execution_data = normalized_execution.get(
+            normalized_pid,
+            {}
         )
-
-        if mutation_data is None:
-            missing_mutation += 1
-
-        if execution_data is None:
-            missing_execution += 1
 
         sample = {
 
-            "program_id": program_id,
+            "program_id":
+                normalized_pid,
 
-            "dialect": (
+            "dialect":
                 mutation_data.get("dialect")
-                if mutation_data else
-                execution_data.get("dialect")
-            ),
+                if mutation_data else None,
 
-            "mutation_agent": (
-                mutation_data.get("mutation_agent")
-                if mutation_data else None
-            ),
+            "seed":
+                mutation_data.get("seed")
+                if mutation_data else None,
 
-            "execution_sandbox_agent": execution_data
+            "program":
+                mutation_data.get("program")
+                if mutation_data else None,
+
+            "mutation_agent":
+                mutation_data.get(
+                    "mutation_agent"
+                )
+                if mutation_data else None,
+
+            "execution_sandbox_agent": {
+
+                "judge_payloads":
+                    execution_data.get(
+                        "judge_payloads",
+                        []
+                    ),
+
+                "pair_benchmarks":
+                    execution_data.get(
+                        "pair_benchmarks",
+                        []
+                    ),
+
+                "other_artifacts":
+                    execution_data.get(
+                        "other_artifacts",
+                        []
+                    )
+            }
         }
 
         merged_samples.append(sample)
 
-    return merged_samples, {
-
-        "missing_mutation_entries":
-            missing_mutation,
-
-        "missing_execution_entries":
-            missing_execution
-    }
-
+    return merged_samples
 
 # ============================================================
 # DATASET OVERVIEW
@@ -409,7 +733,6 @@ def merge_datasets(
 def build_dataset_overview(
     mutation_stats,
     execution_stats,
-    merge_stats,
     final_sample_count
 ):
 
@@ -417,23 +740,20 @@ def build_dataset_overview(
 
         "dataset_name": "MASCoD-Bench",
 
-        "generated_at": (
-            datetime.utcnow().isoformat() + "Z"
-        ),
+        "generated_at":
+            datetime.now(UTC).isoformat(),
 
-        "description": (
-            "MASCoD-Bench is a benchmark "
-            "dataset for evaluating semantic "
-            "reasoning capabilities of large "
-            "language models over MLIR IR "
-            "mutations."
-        ),
+        "description":
+            (
+                "MASCoD-Bench is a benchmark "
+                "dataset for evaluating "
+                "semantic reasoning "
+                "capabilities of LLMs "
+                "over MLIR mutations."
+            ),
 
-        "total_samples": final_sample_count,
-
-        # ----------------------------------------------------
-        # Mutation Agent Stats
-        # ----------------------------------------------------
+        "total_samples":
+            final_sample_count,
 
         "mutation_agent": {
 
@@ -441,41 +761,49 @@ def build_dataset_overview(
                 mutation_stats["total_samples"],
 
             "dialect_distribution":
-                dict(mutation_stats["dialects"]),
+                dict(
+                    mutation_stats["dialects"]
+                ),
 
             "mutation_level_distribution":
-                dict(mutation_stats["levels"]),
+                dict(
+                    mutation_stats["levels"]
+                ),
 
             "mutation_rule_distribution":
-                dict(mutation_stats["rules"])
+                dict(
+                    mutation_stats["rules"]
+                )
         },
-
-        # ----------------------------------------------------
-        # Execution Sandbox Stats
-        # ----------------------------------------------------
 
         "execution_sandbox_agent": {
 
-            "total_samples":
-                execution_stats["total_samples"],
+            "total_artifacts":
+                execution_stats[
+                    "total_artifacts"
+                ],
 
-            "status_distribution":
-                dict(execution_stats["statuses"]),
+            "judge_payloads":
+                execution_stats[
+                    "judge_payloads"
+                ],
 
-            "compile_status_A_distribution":
-                dict(execution_stats["compile_A"]),
+            "pair_benchmarks":
+                execution_stats[
+                    "pair_benchmarks"
+                ],
 
-            "compile_status_B_distribution":
-                dict(execution_stats["compile_B"])
-        },
+            "json_files":
+                execution_stats[
+                    "json_files"
+                ],
 
-        # ----------------------------------------------------
-        # Merge Stats
-        # ----------------------------------------------------
-
-        "merge_statistics": merge_stats
+            "jsonl_rows":
+                execution_stats[
+                    "jsonl_rows"
+                ]
+        }
     }
-
 
 # ============================================================
 # MAIN
@@ -488,10 +816,12 @@ def main():
     print("=" * 80)
 
     # ========================================================
-    # PARSE MUTATION AGENT
+    # MUTATION AGENT
     # ========================================================
 
-    print("\n[1] Parsing Mutation Agent Results...")
+    print(
+        "\n[1] Parsing Mutation Agent Results..."
+    )
 
     mutation_results, mutation_stats = (
         parse_mutation_agent_results(
@@ -506,10 +836,12 @@ def main():
     )
 
     # ========================================================
-    # PARSE EXECUTION SANDBOX
+    # EXECUTION SANDBOX
     # ========================================================
 
-    print("\n[2] Parsing Execution Sandbox Results...")
+    print(
+        "\n[2] Parsing Execution Sandbox Results..."
+    )
 
     execution_results, execution_stats = (
         parse_execution_agent_results(
@@ -529,7 +861,7 @@ def main():
 
     print("\n[3] Merging Datasets...")
 
-    merged_samples, merge_stats = merge_datasets(
+    merged_samples = merge_datasets(
         mutation_results,
         execution_results
     )
@@ -540,16 +872,64 @@ def main():
     )
 
     # ========================================================
+    # MERGE VALIDATION
+    # ========================================================
+
+    with_execution = 0
+    without_execution = 0
+
+    for sample in merged_samples:
+
+        execution = sample.get(
+            "execution_sandbox_agent",
+            {}
+        )
+
+        has_execution = (
+            len(
+                execution.get(
+                    "judge_payloads",
+                    []
+                )
+            ) > 0
+            or
+            len(
+                execution.get(
+                    "pair_benchmarks",
+                    []
+                )
+            ) > 0
+        )
+
+        if has_execution:
+            with_execution += 1
+        else:
+            without_execution += 1
+
+    print(
+        f"    Samples WITH execution data: "
+        f"{with_execution}"
+    )
+
+    print(
+        f"    Samples WITHOUT execution data: "
+        f"{without_execution}"
+    )
+
+    # ========================================================
     # OVERVIEW
     # ========================================================
 
-    print("\n[4] Building Dataset Overview...")
+    print(
+        "\n[4] Building Dataset Overview..."
+    )
 
-    dataset_overview = build_dataset_overview(
-        mutation_stats,
-        execution_stats,
-        merge_stats,
-        len(merged_samples)
+    dataset_overview = (
+        build_dataset_overview(
+            mutation_stats,
+            execution_stats,
+            len(merged_samples)
+        )
     )
 
     # ========================================================
@@ -558,9 +938,11 @@ def main():
 
     final_dataset = {
 
-        "dataset_overview": dataset_overview,
+        "dataset_overview":
+            dataset_overview,
 
-        "samples": merged_samples
+        "samples":
+            merged_samples
     }
 
     # ========================================================
@@ -575,8 +957,12 @@ def main():
         encoding="utf-8"
     ) as f:
 
+        anonymized_dataset = anonymize_object(
+            deepcopy(final_dataset)
+        )
+
         json.dump(
-            final_dataset,
+            anonymized_dataset,
             f,
             indent=2,
             ensure_ascii=False
@@ -588,7 +974,6 @@ def main():
     )
 
     print("\nDONE")
-
 
 # ============================================================
 # ENTRY
